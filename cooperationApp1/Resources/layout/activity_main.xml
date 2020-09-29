@@ -1,5 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<WebView  xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/webview"
+<AbsoluteLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent" />
+    android:layout_height="fill_parent">
+    <WebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+    <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/showloginlayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <Button
+            android:id="@+id/showloginbutton"
+            android:layout_width="60dp"
+            android:padding="10dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="100dp"
+            android:background="@drawable/shape_rounded_blue_rect"
+            android:layout_alignParentRight="true"
+            android:text="click me" />
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_marginTop="100dp"
+            android:layout_alignParentRight="true"
+            android:layout_marginRight="40dp"
+            android:layout_width="300dp"
+            android:layout_height="400dp"
+            android:visibility="invisible"
+            android:background="@drawable/whiteboxwithgreenborder"
+            android:id="@+id/login">
+            
+        </RelativeLayout>
+    </RelativeLayout>
+</AbsoluteLayout>

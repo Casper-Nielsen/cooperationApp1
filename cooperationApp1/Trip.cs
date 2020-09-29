@@ -21,6 +21,8 @@ namespace cooperationApp1
         public DateTime Starttime { get; set; }
         public DateTime Endtime { get; set; }
 
-        public double Avgspeed { get; set; } // km/s
+        public int BreakCount { get; set; }
+        public double AvgBreak { get; set; }
+        public double AvgSpeed { get; set; } // km/s
     }
 }

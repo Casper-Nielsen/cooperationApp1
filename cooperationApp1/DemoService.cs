@@ -8,6 +8,8 @@ using Xamarin.Essentials;
 using System.Threading.Tasks;
 using System.IO;
 using Newtonsoft.Json;
+using System.Net.Sockets;
+using System.Net;
 
 namespace cooperationApp1
 {
@@ -22,7 +24,6 @@ namespace cooperationApp1
         private double cdistance;
         private bool moving = false;
         private double speed;
-        private Task task;
         private int buffer = 0;
         public override IBinder OnBind(Intent intent)
         {
@@ -42,7 +43,7 @@ namespace cooperationApp1
                 RegisterForegroundService();
                 CreateNotificationChannel();
                 //starts the measuring loop
-                task = RunAsync();
+                Task.Run(RunAsync);
             }
             return StartCommandResult.Sticky;
         }
@@ -50,11 +51,33 @@ namespace cooperationApp1
         async Task RunAsync()
         {
             //gets high accuracy
+            int userid = 0;
+            Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+
+            socket.Bind(new IPEndPoint(new IPAddress(new byte[4] { 127, 0, 0, 1 }), 5544));
+            socket.Listen(2);
+            while (userid == 0)
+            {
+                Socket reader = socket.Accept();
+                byte[] buffer = new byte[2048];
+                int lenght = reader.Receive(buffer);
+                if(lenght > 0)
+                {
+                    Array.Resize(ref buffer, lenght);
+                    string json = Convert.ToString(buffer);
+                    userid = 1;
+                }
+            }
+
             var request = new GeolocationRequest(GeolocationAccuracy.High);
             while (run)
             {
                 try
                 {
+                    while (userid == 0)
+                    {
+
+                    }
                     //gets the current location 
                     Location location = await Geolocation.GetLocationAsync(request);
                     if (trip.Endlocation != null)
@@ -80,7 +103,7 @@ namespace cooperationApp1
                                 trip.Distance += cdistance;
                                 count++;
                                 //sets avgspeed
-                                trip.Avgspeed += (double)(speed - trip.Avgspeed) / count;
+                                trip.AvgSpeed += (double)(speed - trip.AvgSpeed) / count;
                             }
                             if (trip.Startlocation == null)
                             {
@@ -106,6 +129,8 @@ namespace cooperationApp1
                             }
                             else if (buffer > 0)
                             {
+                                trip.BreakCount++;
+                                trip.AvgBreak = (double)(buffer - trip.AvgBreak) / trip.BreakCount;
                                 buffer = 0;
                                 //POWERSAVE :: waits 0.1 sec
                                 Thread.Sleep(100);
