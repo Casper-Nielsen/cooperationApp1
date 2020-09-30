@@ -5,6 +5,9 @@ using Android.Runtime;
 using Android.Support.V7.App;
 using Android.Views;
 using Android.Webkit;
+using Android.Widget;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace cooperationApp1
 {
@@ -15,18 +18,30 @@ namespace cooperationApp1
 
         protected override void OnCreate(Bundle savedInstanceState)
         {
+            string url = "http://192.168.43.86:4200/";
             base.OnCreate(savedInstanceState);
             Xamarin.Essentials.Platform.Init(this, savedInstanceState);
             SetContentView(Resource.Layout.activity_main);
+            Button button = FindViewById<Button>(Resource.Id.Enable_tracking_button);
+            button.Click += Btn_EnableTracking;
 
             web_view = FindViewById<WebView>(Resource.Id.webview);
             web_view.Settings.JavaScriptEnabled = true;
             web_view.SetWebViewClient(new WebViewClient());
-            web_view.LoadUrl("http://192.168.87.107:4200/");
-            StartForegroundServiceCompat<DemoService>();
+            web_view.Settings.DomStorageEnabled = true;
+            web_view.Settings.JavaScriptEnabled = true;
+            web_view.Settings.DatabaseEnabled = true;
+            web_view.LoadUrl(url);
+
+            StartForegroundService<DemoService>();
         }
 
-        public void StartForegroundServiceCompat<T>(Bundle args = null) where T : Service
+        private void Btn_EnableTracking(object sender, System.EventArgs e)
+        {
+            System.Console.WriteLine(web_view.Url);
+        }
+
+        public void StartForegroundService<T>(Bundle args = null) where T : Service
         {
             var intent = new Intent(this, typeof(T));
             if (args != null)
@@ -43,6 +58,7 @@ namespace cooperationApp1
                 this.StartService(intent);
             }
         }
+
 
         public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Android.Content.PM.Permission[] grantResults)
         {

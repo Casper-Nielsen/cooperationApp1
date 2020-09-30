@@ -22,7 +22,6 @@ namespace cooperationApp1
         private double cdistance;
         private bool moving = false;
         private double speed;
-        private Task task;
         private int buffer = 0;
         public override IBinder OnBind(Intent intent)
         {
@@ -42,7 +41,7 @@ namespace cooperationApp1
                 RegisterForegroundService();
                 CreateNotificationChannel();
                 //starts the measuring loop
-                task = RunAsync();
+                Task.Run(RunAsync);
             }
             return StartCommandResult.Sticky;
         }
@@ -53,6 +52,7 @@ namespace cooperationApp1
             var request = new GeolocationRequest(GeolocationAccuracy.High);
             while (run)
             {
+                Console.WriteLine();
                 try
                 {
                     //gets the current location 
@@ -80,7 +80,7 @@ namespace cooperationApp1
                                 trip.Distance += cdistance;
                                 count++;
                                 //sets avgspeed
-                                trip.Avgspeed += (double)(speed - trip.Avgspeed) / count;
+                                trip.AvgSpeed += (double)(speed - trip.AvgSpeed) / count;
                             }
                             if (trip.Startlocation == null)
                             {
@@ -106,6 +106,8 @@ namespace cooperationApp1
                             }
                             else if (buffer > 0)
                             {
+                                trip.BreakCount++;
+                                trip.AvgBreak = (double)(buffer - trip.AvgBreak) / trip.BreakCount;
                                 buffer = 0;
                                 //POWERSAVE :: waits 0.1 sec
                                 Thread.Sleep(100);
