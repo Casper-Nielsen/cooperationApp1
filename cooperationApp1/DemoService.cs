@@ -8,6 +8,8 @@ using Xamarin.Essentials;
 using System.Threading.Tasks;
 using System.IO;
 using Newtonsoft.Json;
+using Google.Protobuf.WellKnownTypes;
+using System.Collections;
 
 namespace cooperationApp1
 {
@@ -15,14 +17,18 @@ namespace cooperationApp1
     public class DemoService : Service
     {
         private readonly string CHANNEL_ID = "location_notification";
-        internal static readonly string COUNT_KEY = "count";
+        private Location startlocation;
+        public Location endlocation;
+        public static bool running = false;
         private static int count;
-        private bool run = true;
-        private Trip trip = new Trip();
+        private Protobuf.Trip trip = new Protobuf.Trip();
         private double cdistance;
         private bool moving = false;
         private double speed;
+        private int userId;
+        private Stack tripStack;
         private int buffer = 0;
+        private int noConnectionBuffer = 0;
         public override IBinder OnBind(Intent intent)
         {
             return null;
@@ -30,17 +36,20 @@ namespace cooperationApp1
 
         public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId)
         {
+            tripStack = new Stack();
             if (intent.Action == Constants.ACTION_STOP_SERVICE)
             {
-                run = false;
+                running = false;
                 StopForeground(true);
                 StopSelf();
             }
-            else
+            else if (int.TryParse(intent.Action, out userId))
             {
+                trip.UserId = userId;
                 RegisterForegroundService();
                 CreateNotificationChannel();
                 //starts the measuring loop
+                running = true;
                 Task.Run(RunAsync);
             }
             return StartCommandResult.Sticky;
@@ -50,73 +59,65 @@ namespace cooperationApp1
         {
             //gets high accuracy
             var request = new GeolocationRequest(GeolocationAccuracy.High);
-            while (run)
+            while (running)
             {
                 Console.WriteLine();
                 try
                 {
                     //gets the current location 
                     Location location = await Geolocation.GetLocationAsync(request);
-                    if (trip.Endlocation != null)
+                    if (endlocation != null)
                     {
                         //gets the distance between 2 points 
-                        cdistance = Location.CalculateDistance(trip.Endlocation, location, DistanceUnits.Kilometers);
+                        cdistance = Location.CalculateDistance(endlocation, location, DistanceUnits.Kilometers);
                         // gets the speed in km/h
-                        speed = cdistance * (3600 / (location.Timestamp.Subtract(trip.Endlocation.Timestamp).TotalSeconds));
+                        speed = cdistance * (3600 / (location.Timestamp.Subtract(endlocation.Timestamp).TotalSeconds));
                     }
-                    trip.Endlocation = location;
-
-                    //Debug:: shows the speed
-                    Console.WriteLine("speed: " + speed);
-
+                    endlocation = location;
 
                     if (moving)
                     {
-                        if (location != null)
-                        {
-                            if (trip.Endlocation != null)
-                            {
-                                //adds to total distance
-                                trip.Distance += cdistance;
-                                count++;
-                                //sets avgspeed
-                                trip.AvgSpeed += (double)(speed - trip.AvgSpeed) / count;
-                            }
-                            if (trip.Startlocation == null)
-                            {
-                                //sets the start location 
-                                trip.Startlocation = trip.Endlocation;
-                            }
-                            //if it is standing still
-                            if (location.Speed < 1)
-                            {
-                                buffer++;
-                                //buffer for (traffic light)
-                                if (buffer > 30)
-                                {
-                                    //stops the trip measuring
-                                    moving = false;
-                                    trip.Endtime = DateTime.Now;
+                        //adds to total distance
+                        trip.Distance += cdistance;
+                        count++;
+                        //sets avgspeed
+                        trip.AvgSpeed += (double)(speed - trip.AvgSpeed) / count;
 
-                                    //TEMP :: for sending
-                                    string jsonString = JsonConvert.SerializeObject(trip);
-                                }
-                                //POWERSAVE :: waits 1 sec
-                                Thread.Sleep(1000);
-                            }
-                            else if (buffer > 0)
+                        if (startlocation == null)
+                        {
+                            //sets the start location 
+                            startlocation = endlocation;
+                        }
+                        //if it is standing still
+                        if (location.Speed < 5)
+                        {
+                            buffer++;
+                            //buffer for (traffic light)
+                            if (buffer > 30)
                             {
-                                trip.BreakCount++;
-                                trip.AvgBreak = (double)(buffer - trip.AvgBreak) / trip.BreakCount;
-                                buffer = 0;
-                                //POWERSAVE :: waits 0.1 sec
-                                Thread.Sleep(100);
+                                //stops the trip measuring
+                                moving = false;
+                                trip.Endtime = new Timestamp();
+                                trip.StartLocationFormated.AddRange(new double[2] { startlocation.Latitude, startlocation.Longitude });
+                                trip.EndLocationFormated.AddRange(new double[2] { endlocation.Latitude, endlocation.Longitude });
+                                tripStack.Push(trip);
+
                             }
-                            else
-                            {
-                                //POWERSAVE :: waits 0.2 sec
-                                Thread.Sleep(200);
-                            }
+                            //POWERSAVE :: waits 1 sec
+                            Thread.Sleep(1000);
+                        }
+                        else if (buffer > 0)
+                        {
+                            trip.BreakCount++;
+                            trip.AvgBreak = (double)(buffer - trip.AvgBreak) / trip.BreakCount;
+                            buffer = 0;
+                            //POWERSAVE :: waits 0.1 sec
+                            Thread.Sleep(100);
+                        }
+                        else
+                        {
+                            //POWERSAVE :: waits 0.2 sec
+                            Thread.Sleep(200);
                         }
                     }
                     else
@@ -130,13 +131,32 @@ namespace cooperationApp1
                             //resets the values
                             speed = 0;
                             count = 0;
-                            trip = new Trip();
-                            trip.Starttime = DateTime.Now;
+                            trip = new Protobuf.Trip();
+                            trip.Starttime = new Timestamp();
                         }
                         else
                         {
-                            //POWERSAVE :: waits 10 sec
-                            Thread.Sleep(10000);
+                            if (tripStack.Count > 0 && noConnectionBuffer <= 0)
+                           {
+                                bool response = false;
+                                if (false)
+                                {
+                                    if (bool.TryParse(await ApiController.PostProductAsync((Protobuf.Trip)tripStack.Peek()), out response) && response)
+                                    {
+                                        tripStack.Pop();
+                                    }
+                                }
+                                else
+                                {
+                                    noConnectionBuffer = 10;
+                                }
+                            }
+                            else if (noConnectionBuffer > 0)
+                            {
+                                noConnectionBuffer--;
+                            }
+                            //POWERSAVE :: waits 60 sec
+                            Thread.Sleep(60000);
                         }
                     }
                 }

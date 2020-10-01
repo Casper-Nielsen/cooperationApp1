@@ -2,6 +2,7 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">192.168.43.86</domain>
+        <domain includeSubdomains="true">172.16.21.44</domain>
         <!-- Debug port -->
         <domain includeSubdomains="true">xamarin.com</domain>
     </domain-config>
