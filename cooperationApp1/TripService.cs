@@ -18,19 +18,19 @@ namespace cooperationApp1
     {
         private readonly string CHANNEL_ID = "location_notification";
         private Location startlocation;
-        public Location endlocation;
+        private Location endlocation;
         public static bool running = false;
-        private static int count;
+        private int count;
         private Protobuf.Trip trip = new Protobuf.Trip();
         private int userId;
         private Stack tripStack;
         private int buffer = 0;
         private int noConnectionBuffer = 0;
+
         public override IBinder OnBind(Intent intent)
         {
             return null;
         }
-
         public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId)
         {
             tripStack = new Stack();
@@ -51,8 +51,7 @@ namespace cooperationApp1
             }
             return StartCommandResult.Sticky;
         }
-
-        async Task RunAsync()
+        private async Task RunAsync()
         {
             //gets high accuracy
             var request = new GeolocationRequest(GeolocationAccuracy.High);
@@ -77,7 +76,7 @@ namespace cooperationApp1
 
                     if (inMotion)
                     {
-                        inMotion = await InMotionAsync(speed, distance, location);
+                        inMotion = await InMotionAsync(speed, distance);
                     }
                     else
                     {
@@ -89,8 +88,7 @@ namespace cooperationApp1
                 }
             }
         }
-
-        private async Task<bool> InMotionAsync(double speed, double distance, Location location)
+        private async Task<bool> InMotionAsync(double speed, double distance)
         {
 
             //adds to total distance
@@ -105,7 +103,7 @@ namespace cooperationApp1
                 startlocation = endlocation;
             }
             //if it is standing still
-            if (location.Speed < 5)
+            if (speed < 5)
             {
                 buffer++;
                 //buffer for (traffic light)
@@ -177,7 +175,7 @@ namespace cooperationApp1
                 return false;
             }
         }
-        void CreateNotificationChannel()
+        private void CreateNotificationChannel()
         {
             var name = "hello world";
             var description = "this is a hello world from service";
@@ -189,9 +187,7 @@ namespace cooperationApp1
             var notificationManager = (NotificationManager)GetSystemService(NotificationService);
             notificationManager.CreateNotificationChannel(channel);
         }
-
-
-        void RegisterForegroundService()
+        private void RegisterForegroundService()
         {
             var notification = new Notification.Builder(this, CHANNEL_ID)
                               .SetContentTitle("Co2opreation") // Set the title
@@ -206,8 +202,7 @@ namespace cooperationApp1
             // Enlist this instance of the service as a foreground service
             StartForeground(Constants.SERVICE_RUNNING_NOTIFICATION_ID, notification);
         }
-
-        Notification.Action BuildStopServiceAction()
+        private Notification.Action BuildStopServiceAction()
         {
             var stopServiceIntent = new Intent(this, GetType());
             stopServiceIntent.SetAction(Constants.ACTION_STOP_SERVICE);
