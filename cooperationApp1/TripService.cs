@@ -14,7 +14,7 @@ using System.Collections;
 namespace cooperationApp1
 {
     [Service]
-    public class DemoService : Service
+    public class TripService : Service
     {
         private readonly string CHANNEL_ID = "location_notification";
         private Location startlocation;
@@ -22,9 +22,6 @@ namespace cooperationApp1
         public static bool running = false;
         private static int count;
         private Protobuf.Trip trip = new Protobuf.Trip();
-        private double cdistance;
-        private bool moving = false;
-        private double speed;
         private int userId;
         private Stack tripStack;
         private int buffer = 0;
@@ -59,6 +56,9 @@ namespace cooperationApp1
         {
             //gets high accuracy
             var request = new GeolocationRequest(GeolocationAccuracy.High);
+            double speed = 0;
+            double distance = 0;
+            bool inMotion = false;
             while (running)
             {
                 Console.WriteLine();
@@ -69,103 +69,114 @@ namespace cooperationApp1
                     if (endlocation != null)
                     {
                         //gets the distance between 2 points 
-                        cdistance = Location.CalculateDistance(endlocation, location, DistanceUnits.Kilometers);
+                        distance = Location.CalculateDistance(endlocation, location, DistanceUnits.Kilometers);
                         // gets the speed in km/h
-                        speed = cdistance * (3600 / (location.Timestamp.Subtract(endlocation.Timestamp).TotalSeconds));
+                        speed = distance * (3600 / (location.Timestamp.Subtract(endlocation.Timestamp).TotalSeconds));
                     }
                     endlocation = location;
 
-                    if (moving)
+                    if (inMotion)
                     {
-                        //adds to total distance
-                        trip.Distance += cdistance;
-                        count++;
-                        //sets avgspeed
-                        trip.AvgSpeed += (double)(speed - trip.AvgSpeed) / count;
-
-                        if (startlocation == null)
-                        {
-                            //sets the start location 
-                            startlocation = endlocation;
-                        }
-                        //if it is standing still
-                        if (location.Speed < 5)
-                        {
-                            buffer++;
-                            //buffer for (traffic light)
-                            if (buffer > 30)
-                            {
-                                //stops the trip measuring
-                                moving = false;
-                                trip.Endtime = new Timestamp();
-                                trip.StartLocationFormated.AddRange(new double[2] { startlocation.Latitude, startlocation.Longitude });
-                                trip.EndLocationFormated.AddRange(new double[2] { endlocation.Latitude, endlocation.Longitude });
-                                tripStack.Push(trip);
-
-                            }
-                            //POWERSAVE :: waits 1 sec
-                            Thread.Sleep(1000);
-                        }
-                        else if (buffer > 0)
-                        {
-                            trip.BreakCount++;
-                            trip.AvgBreak = (double)(buffer - trip.AvgBreak) / trip.BreakCount;
-                            buffer = 0;
-                            //POWERSAVE :: waits 0.1 sec
-                            Thread.Sleep(100);
-                        }
-                        else
-                        {
-                            //POWERSAVE :: waits 0.2 sec
-                            Thread.Sleep(200);
-                        }
+                        inMotion = await InMotionAsync(speed, distance, location);
                     }
                     else
                     {
-                        //looks if it is moving with a speed over 15km/h
-                        if (speed * 3.6 > 15)
-                        {
-                            //starts the trip measuring 
-                            moving = true;
-
-                            //resets the values
-                            speed = 0;
-                            count = 0;
-                            trip = new Protobuf.Trip();
-                            trip.Starttime = new Timestamp();
-                        }
-                        else
-                        {
-                            if (tripStack.Count > 0 && noConnectionBuffer <= 0)
-                           {
-                                bool response = false;
-                                if (false)
-                                {
-                                    if (bool.TryParse(await ApiController.PostProductAsync((Protobuf.Trip)tripStack.Peek()), out response) && response)
-                                    {
-                                        tripStack.Pop();
-                                    }
-                                }
-                                else
-                                {
-                                    noConnectionBuffer = 10;
-                                }
-                            }
-                            else if (noConnectionBuffer > 0)
-                            {
-                                noConnectionBuffer--;
-                            }
-                            //POWERSAVE :: waits 60 sec
-                            Thread.Sleep(60000);
-                        }
+                        inMotion = await NotInMotionAsync(speed);
                     }
                 }
-                catch
+                catch (Exception e)
                 {
                 }
             }
         }
 
+        private async Task<bool> InMotionAsync(double speed, double distance, Location location)
+        {
+
+            //adds to total distance
+            trip.Distance += distance;
+            count++;
+            //sets avgspeed
+            trip.AvgSpeed += (double)(speed - trip.AvgSpeed) / count;
+
+            if (startlocation == null)
+            {
+                //sets the start location 
+                startlocation = endlocation;
+            }
+            //if it is standing still
+            if (location.Speed < 5)
+            {
+                buffer++;
+                //buffer for (traffic light)
+                if (buffer > 30)
+                {
+                    //stops the trip measuring
+                    trip.Endtime.Seconds = Convert.ToInt64(DateTime.Now.Subtract(new DateTime(1970, 1, 1)).TotalSeconds);
+                    trip.StartLocationFormated.AddRange(new double[2] { startlocation.Latitude, startlocation.Longitude });
+                    trip.EndLocationFormated.AddRange(new double[2] { endlocation.Latitude, endlocation.Longitude });
+                    tripStack.Push(trip);
+
+                    //POWERSAVE :: waits 1 sec
+                    Thread.Sleep(1000);
+                    return false;
+                }
+                //POWERSAVE :: waits 1 sec
+                Thread.Sleep(1000);
+            }
+            else if (buffer > 0)
+            {
+                trip.BreakCount++;
+                trip.AvgBreak = (double)(buffer - trip.AvgBreak) / trip.BreakCount;
+                buffer = 0;
+                //POWERSAVE :: waits 0.1 sec
+                Thread.Sleep(100);
+            }
+            else
+            {
+                //POWERSAVE :: waits 0.2 sec
+                Thread.Sleep(200);
+            }
+            return true;
+        }
+        private async Task<bool> NotInMotionAsync(double speed)
+        {
+            //looks if it is in motion with a speed over 15km/h
+            if (speed * 3.6 > 15)
+            {
+                //resets the values
+                speed = 0;
+                count = 0;
+                trip = new Protobuf.Trip();
+                trip.UserId = userId;
+                trip.Starttime = new Timestamp();
+                trip.Endtime = new Timestamp();
+                trip.Starttime.Seconds = Convert.ToInt64(DateTime.Now.Subtract(new DateTime(1970, 1, 1)).TotalSeconds);
+                return true;
+            }
+            else
+            {
+                if (tripStack.Count > 0 && noConnectionBuffer <= 0)
+                {
+                    bool response = false;
+                    if (bool.TryParse(await ApiController.PostProductAsync((Protobuf.Trip)tripStack.Peek()), out response) && response)
+                    {
+                        tripStack.Pop();
+                    }
+                    else
+                    {
+                        noConnectionBuffer = 10;
+                    }
+                }
+                else if (noConnectionBuffer > 0)
+                {
+                    noConnectionBuffer--;
+                }
+                //POWERSAVE :: waits 60 sec
+                Thread.Sleep(10000);
+                return false;
+            }
+        }
         void CreateNotificationChannel()
         {
             var name = "hello world";

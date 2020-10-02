@@ -63,7 +63,7 @@
   <ItemGroup>
     <Compile Include="ApiController.cs" />
     <Compile Include="Constants.cs" />
-    <Compile Include="DemoService.cs" />
+    <Compile Include="TripService.cs" />
     <Compile Include="MainActivity.cs" />
     <Compile Include="protobuf\Trip.cs" />
     <Compile Include="Resources\Resource.designer.cs" />

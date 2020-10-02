@@ -25,27 +25,28 @@ namespace cooperationApp1
             button.Click += Btn_EnableTracking;
 
             web_view = FindViewById<WebView>(Resource.Id.webview);
-            web_view.SetWebChromeClient(new WebViewClientpublic());
+            web_view.ClearCache(false);
+            web_view.SetWebChromeClient(new WebChromeClientpublic());
             web_view.Settings.JavaScriptEnabled = true;
             web_view.Settings.DomStorageEnabled = true;
-            web_view.Settings.JavaScriptEnabled = true;
             web_view.Settings.DatabaseEnabled = true;
-            web_view.ClearCache(false);
+            web_view.Settings.SetGeolocationEnabled(true);
+
             web_view.LoadUrl(url);
       
         }
 
         private void Btn_EnableTracking(object sender, System.EventArgs e)
         {
-            if (web_view.WebChromeClient is WebViewClientpublic)
+            if (web_view.WebChromeClient is WebChromeClientpublic)
             {
-                string suserid = ((WebViewClientpublic)web_view.WebChromeClient).userid;
-                if (suserid == "")
+                string suserid = ((WebChromeClientpublic)web_view.WebChromeClient).userid;
+                if (suserid != "")
                 {
                     int userid = Convert.ToInt32(suserid);
                     if (userid > 0)
                     {
-                        Intent intent = new Intent(this, typeof(DemoService));
+                        Intent intent = new Intent(this, typeof(TripService));
                         intent.SetAction(userid.ToString());
 
                         if (Build.VERSION.SdkInt >= BuildVersionCodes.O)

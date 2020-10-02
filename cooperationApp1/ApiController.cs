@@ -28,7 +28,7 @@ namespace cooperationApp1
             client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
             HttpResponseMessage response = await client.GetAsync(
-                "api/MobilClient/?data="+ Convert.ToBase64String(trip.ToByteArray()));
+                "api/MobilClient/TripViaProtobuf/?data=" + Convert.ToBase64String(trip.ToByteArray()));
             response.EnsureSuccessStatusCode();
 
             // return URI of the created resource.
