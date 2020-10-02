@@ -2,12 +2,32 @@
 
 namespace cooperationApp1
 {
+    class WebChromeClientpublic : WebChromeClient
+    {
+        public string userid = "";
+
+        public override bool OnConsoleMessage(ConsoleMessage consoleMessage)
+        {
+            return base.OnConsoleMessage(consoleMessage);
+        }
+        public override void OnConsoleMessage(string message, int lineNumber, string sourceID)
+        {
+            if (message.Contains("userid."))
+            {
+                userid = message.Split("userid.")[1];
+            }
+            base.OnConsoleMessage(message, lineNumber, sourceID);
+        }
+    }
     class WebViewClientpublic : WebViewClient
     {
-        // For API level 24 and later
-        public override bool ShouldOverrideUrlLoading(WebView view, IWebResourceRequest request)
+        public override bool ShouldOverrideUrlLoading(WebView view, string url)
         {
-            view.LoadUrl(request.Url.ToString());
+            if (true)
+            {
+                // magic
+                return true;
+            }
             return false;
         }
     }

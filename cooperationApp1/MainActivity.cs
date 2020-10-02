@@ -5,6 +5,8 @@ using Android.Runtime;
 using Android.Support.V7.App;
 using Android.Views;
 using Android.Webkit;
+using Android.Widget;
+using System;
 
 namespace cooperationApp1
 {
@@ -15,32 +17,53 @@ namespace cooperationApp1
 
         protected override void OnCreate(Bundle savedInstanceState)
         {
+            string url = "http://172.16.21.44:8012/";
             base.OnCreate(savedInstanceState);
             Xamarin.Essentials.Platform.Init(this, savedInstanceState);
             SetContentView(Resource.Layout.activity_main);
+            Button button = FindViewById<Button>(Resource.Id.Enable_tracking_button);
+            button.Click += Btn_EnableTracking;
 
             web_view = FindViewById<WebView>(Resource.Id.webview);
+            web_view.ClearCache(false);
+            web_view.SetWebChromeClient(new WebChromeClientpublic());
             web_view.Settings.JavaScriptEnabled = true;
-            web_view.SetWebViewClient(new WebViewClient());
-            web_view.LoadUrl("http://192.168.87.107:4200/");
-            StartForegroundServiceCompat<DemoService>();
+            web_view.Settings.DomStorageEnabled = true;
+            web_view.Settings.DatabaseEnabled = true;
+            web_view.Settings.SetGeolocationEnabled(true);
+
+            web_view.LoadUrl(url);
+      
         }
 
-        public void StartForegroundServiceCompat<T>(Bundle args = null) where T : Service
+        private void Btn_EnableTracking(object sender, System.EventArgs e)
         {
-            var intent = new Intent(this, typeof(T));
-            if (args != null)
+            if (web_view.WebChromeClient is WebChromeClientpublic)
             {
-                intent.PutExtras(args);
-            }
+                string suserid = ((WebChromeClientpublic)web_view.WebChromeClient).userid;
+                if (suserid != "")
+                {
+                    int userid = Convert.ToInt32(suserid);
+                    if (userid > 0)
+                    {
+                        Intent intent = new Intent(this, typeof(TripService));
+                        intent.SetAction(userid.ToString());
 
-            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
-            {
-                this.StartForegroundService(intent);
-            }
-            else
-            {
-                this.StartService(intent);
+                        if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+                        {
+                            this.StartForegroundService(intent);
+                        }
+                        else
+                        {
+                            this.StartService(intent);
+                        }
+                        ((Button)sender).Visibility = ViewStates.Invisible;
+                    }
+                }
+                else
+                {
+                    Toast.MakeText(Android.App.Application.Context, "please login", ToastLength.Short).Show();
+                }
             }
         }
 
