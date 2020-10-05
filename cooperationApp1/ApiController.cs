@@ -19,10 +19,14 @@ namespace cooperationApp1
 {
     class ApiController
     {
-        static public async Task<string> PostProductAsync(Protobuf.Trip trip)
+        /// <summary>
+        /// sends a get with the trip data to the server
+        /// </summary>
+        /// <returns>true false from the server</returns>
+        static public async Task<string> GetProductAsync(Protobuf.Trip trip)
         {
             HttpClient client = new HttpClient();
-            // Update port # in the following line.
+            //sends to the server
             client.BaseAddress = new Uri("http://172.16.21.44/");
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(

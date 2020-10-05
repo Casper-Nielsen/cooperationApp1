@@ -31,26 +31,39 @@ namespace cooperationApp1
         {
             return null;
         }
+        /// <summary>
+        /// runs when the service starts
+        /// </summary>
         public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId)
         {
-            tripStack = new Stack();
+            //if it is a stop service action 
             if (intent.Action == Constants.ACTION_STOP_SERVICE)
             {
                 running = false;
                 StopForeground(true);
                 StopSelf();
             }
+            //if it can parse the action to a int
             else if (int.TryParse(intent.Action, out userId))
-            {
+            { 
+                //sets the trip stack
+                tripStack = new Stack();
                 trip.UserId = userId;
+                //register this as a foreground service
                 RegisterForegroundService();
+                //create the notification channel
                 CreateNotificationChannel();
                 //starts the measuring loop
                 running = true;
+                //starts the run loop as a task on a new thread
                 Task.Run(RunAsync);
             }
             return StartCommandResult.Sticky;
         }
+        /// <summary>
+        /// runs a loop to get all the trips
+        /// </summary>
+        /// <returns></returns>
         private async Task RunAsync()
         {
             //gets high accuracy
@@ -88,6 +101,12 @@ namespace cooperationApp1
                 }
             }
         }
+        /// <summary>
+        /// register like it is in motion
+        /// </summary>
+        /// <param name="speed">the current speed</param>
+        /// <param name="distance">the distance it moved</param>
+        /// <returns></returns>
         private async Task<bool> InMotionAsync(double speed, double distance)
         {
 
@@ -137,6 +156,11 @@ namespace cooperationApp1
             }
             return true;
         }
+        /// <summary>
+        /// register like it is not in motion
+        /// </summary>
+        /// <param name="speed">the current speed</param>
+        /// <returns></returns>
         private async Task<bool> NotInMotionAsync(double speed)
         {
             //looks if it is in motion with a speed over 15km/h
@@ -154,18 +178,23 @@ namespace cooperationApp1
             }
             else
             {
+                //if there is a trip and the connection buffer is 0
                 if (tripStack.Count > 0 && noConnectionBuffer <= 0)
                 {
                     bool response = false;
-                    if (bool.TryParse(await ApiController.PostProductAsync((Protobuf.Trip)tripStack.Peek()), out response) && response)
+                    //trys to sent the trip
+                    if (bool.TryParse(await ApiController.GetProductAsync((Protobuf.Trip)tripStack.Peek()), out response) && response)
                     {
+                        //removes the top trip
                         tripStack.Pop();
                     }
                     else
                     {
+                        //sets the buffer to 10 to minimice the power usage
                         noConnectionBuffer = 10;
                     }
                 }
+                // if the no connection buffer is over 0 then minus 1
                 else if (noConnectionBuffer > 0)
                 {
                     noConnectionBuffer--;
@@ -175,9 +204,12 @@ namespace cooperationApp1
                 return false;
             }
         }
+        /// <summary>
+        /// creates a notification channel
+        /// </summary>
         private void CreateNotificationChannel()
         {
-            var name = "hello world";
+            var name = "Co2operation";
             var description = "this is a hello world from service";
             var channel = new NotificationChannel(CHANNEL_ID, name, NotificationImportance.Default)
             {
@@ -187,6 +219,9 @@ namespace cooperationApp1
             var notificationManager = (NotificationManager)GetSystemService(NotificationService);
             notificationManager.CreateNotificationChannel(channel);
         }
+        /// <summary>
+        /// register the servers as a foreground service by a foreground notification
+        /// </summary>
         private void RegisterForegroundService()
         {
             var notification = new Notification.Builder(this, CHANNEL_ID)
@@ -202,6 +237,10 @@ namespace cooperationApp1
             // Enlist this instance of the service as a foreground service
             StartForeground(Constants.SERVICE_RUNNING_NOTIFICATION_ID, notification);
         }
+        /// <summary>
+        /// setsup the stop button
+        /// </summary>
+        /// <returns></returns>
         private Notification.Action BuildStopServiceAction()
         {
             var stopServiceIntent = new Intent(this, GetType());
