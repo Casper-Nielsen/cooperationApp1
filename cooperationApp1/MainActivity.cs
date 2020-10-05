@@ -24,6 +24,7 @@ namespace cooperationApp1
             Button button = FindViewById<Button>(Resource.Id.Enable_tracking_button);
             button.Click += Btn_EnableTracking;
 
+            //sets up the webview
             web_view = FindViewById<WebView>(Resource.Id.webview);
             web_view.ClearCache(false);
             web_view.SetWebChromeClient(new WebChromeClientpublic());
@@ -35,7 +36,9 @@ namespace cooperationApp1
             web_view.LoadUrl(url);
       
         }
-
+        /// <summary>
+        /// enables the tracking service
+        /// </summary>
         private void Btn_EnableTracking(object sender, System.EventArgs e)
         {
             if (web_view.WebChromeClient is WebChromeClientpublic)
@@ -73,7 +76,9 @@ namespace cooperationApp1
 
             base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
         }
-
+        /// <summary>
+        /// goes one step back or close the app
+        /// </summary>
         public override bool OnKeyDown(Android.Views.Keycode keyCode, Android.Views.KeyEvent e)
         {
             if (keyCode == Keycode.Back && web_view.CanGoBack())
